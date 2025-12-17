@@ -7,16 +7,43 @@
     body { font-family: Arial; padding: 20px; }
     .item { border: 1px solid #ccc; padding: 12px; margin-bottom: 10px; border-radius: 8px; }
     .good { color: green; font-weight: bold; }
+    .bar { background: #eee; border-radius: 8px; overflow: hidden; }
+    .bar-fill { background: green; height: 20px; text-align: center; color: white; }
+    button { padding: 8px 12px; margin-top: 10px; }
   </style>
 </head>
 <body>
 
 <h1>Bi-Weekly Budget Tracker</h1>
-<p>Pay Period: Dec 19 – Jan 1</p>
+
+<label><strong>Pay Period:</strong></label>
+<select id="period"></select>
+
+<h3>Down Payment Progress ($10,000 goal)</h3>
+<div class="bar">
+  <div id="dpBar" class="bar-fill"></div>
+</div>
 
 <div id="app"></div>
 
+<h3>Totals</h3>
+<p>Total Budgeted: $<span id="totalBudget">0</span></p>
+<p>Total Spent: $<span id="totalSpent">0</span></p>
+<p><strong>Remaining: $<span id="remaining">0</span></strong></p>
+
+<button onclick="resetPeriod()">Reset Pay Period</button>
+<button onclick="exportCSV()">Export to Excel</button>
+
 <script>
+const downPaymentGoal = 10000;
+
+const periods = [
+  "Dec 19 – Jan 1",
+  "Jan 2 – Jan 15",
+  "Jan 16 – Jan 29",
+  "Jan 30 – Feb 12"
+];
+
 const items = [
   { name: "Savings Transfer", budget: 350 },
   { name: "Groceries", budget: 150 },
@@ -28,47 +55,121 @@ const items = [
   { name: "Subscriptions", budget: 75 }
 ];
 
-const app = document.getElementById("app");
+const periodSelect = document.getElementById("period");
+periods.forEach(p => {
+  const opt = document.createElement("option");
+  opt.value = p;
+  opt.textContent = p;
+  periodSelect.appendChild(opt);
+});
 
-// Load saved data
-const savedData = JSON.parse(localStorage.getItem("budgetData")) || {};
+let currentPeriod = localStorage.getItem("currentPeriod") || periods[0];
+periodSelect.value = currentPeriod;
 
-items.forEach((item, index) => {
-  const div = document.createElement("div");
-  div.className = "item";
+periodSelect.onchange = () => {
+  currentPeriod = periodSelect.value;
+  localStorage.setItem("currentPeriod", currentPeriod);
+  load();
+};
 
-  const savedValue = savedData[item.name] || "";
+function getData() {
+  return JSON.parse(localStorage.getItem(currentPeriod)) || {};
+}
 
-  div.innerHTML = `
-    <strong>${item.name}</strong><br>
-    Budget: $${item.budget}<br>
-    <input type="number" value="${savedValue}" placeholder="Actual spent" />
-    <div class="status"></div>
-  `;
+function saveData(data) {
+  localStorage.setItem(currentPeriod, JSON.stringify(data));
+}
 
-  const input = div.querySelector("input");
-  const status = div.querySelector(".status");
+function load() {
+  const data = getData();
+  const app = document.getElementById("app");
+  app.innerHTML = "";
 
-  function updateStatus() {
-    if (input.value && Number(input.value) <= item.budget) {
+  let totalBudget = 0;
+  let totalSpent = 0;
+
+  items.forEach(item => {
+    totalBudget += item.budget;
+    const val = data[item.name] || 0;
+    totalSpent += Number(val);
+
+    const div = document.createElement("div");
+    div.className = "item";
+    div.innerHTML = `
+      <strong>${item.name}</strong><br>
+      Budget: $${item.budget}<br>
+      <input type="number" value="${val}" />
+      <div class="status"></div>
+    `;
+
+    const input = div.querySelector("input");
+    const status = div.querySelector(".status");
+
+    if (val && val <= item.budget) {
       status.textContent = "✔ On track";
       status.className = "status good";
-    } else {
-      status.textContent = "";
     }
-  }
 
-  updateStatus();
+    input.oninput = () => {
+      data[item.name] = input.value;
+      saveData(data);
+      load();
+    };
 
-  input.addEventListener("input", () => {
-    savedData[item.name] = input.value;
-    localStorage.setItem("budgetData", JSON.stringify(savedData));
-    updateStatus();
+    app.appendChild(div);
   });
 
-  app.appendChild(div);
-});
+  document.getElementById("totalBudget").textContent = totalBudget;
+  document.getElementById("totalSpent").textContent = totalSpent;
+  document.getElementById("remaining").textContent = totalBudget - totalSpent;
+
+  updateDownPayment();
+}
+
+function resetPeriod() {
+  if (confirm("Reset this pay period?")) {
+    localStorage.removeItem(currentPeriod);
+    load();
+  }
+}
+
+function updateDownPayment() {
+  let saved = 0;
+  periods.forEach(p => {
+    const d = JSON.parse(localStorage.getItem(p));
+    if (d && d["Savings Transfer"]) {
+      saved += Number(d["Savings Transfer"]);
+    }
+  });
+
+  const percent = Math.min((saved / downPaymentGoal) * 100, 100);
+  const bar = document.getElementById("dpBar");
+  bar.style.width = percent + "%";
+  bar.textContent = "$" + saved;
+}
+
+function exportCSV() {
+  let rows = [["Pay Period", "Category", "Amount"]];
+  periods.forEach(p => {
+    const d = JSON.parse(localStorage.getItem(p));
+    if (d) {
+      for (let k in d) {
+        rows.push([p, k, d[k]]);
+      }
+    }
+  });
+
+  let csv = rows.map(r => r.join(",")).join("\\n");
+  let blob = new Blob([csv], { type: "text/csv" });
+  let a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "budget.csv";
+  a.click();
+}
+
+load();
 </script>
 
 </body>
 </html>
+
