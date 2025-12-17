@@ -5,9 +5,59 @@
 <title>Personal Finance Dashboard</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<!-- Firebase -->
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"></script>
+<!-- Firebase SDK -->
+<script type="module">
+  // Import Firebase functions from SDK 10+
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  // =========================
+  // PASTE YOUR FIREBASE CONFIG OBJECT HERE
+  // =========================
+ const firebaseConfig = {
+  apiKey: "AIzaSyA4jQd6f-cRohCObgRyscM3brEbQkiEZ3o",
+  authDomain: "budget-3582e.firebaseapp.com",
+  projectId: "budget-3582e",
+  storageBucket: "budget-3582e.firebasestorage.app",
+  messagingSenderId: "889532008400",
+  appId: "1:889532008400:web:d174a40803e39c90b29bd5",
+  measurementId: "G-3JER9KVEX0"
+};
+
+  // Initialize Firebase
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // =========================
+  // EXPOSE FIRESTORE FUNCTIONS TO GLOBAL SCOPE
+  // =========================
+  window.syncToCloud = async function(state){
+    try {
+      await setDoc(doc(db, "finance", "main"), state);
+      alert("Synced to cloud");
+    } catch(err){
+      alert("Error syncing to cloud: " + err);
+    }
+  }
+
+  window.loadFromCloud = async function(){
+    try {
+      const docRef = doc(db, "finance", "main");
+      const docSnap = await getDoc(docRef);
+      if(docSnap.exists()){
+        state = docSnap.data();
+        saveLocal();
+        renderBudget();
+        renderEvents();
+        alert("Loaded from cloud");
+      } else {
+        alert("No cloud data found.");
+      }
+    } catch(err){
+      alert("Error loading cloud data: " + err);
+    }
+  }
+</script>
 
 <style>
 body{font-family:system-ui;background:#f4f6fb;margin:0;color:#222}
@@ -35,7 +85,6 @@ button.action{background:#4f46e5;color:#fff;border:none;padding:10px;border-radi
 <button onclick="showTab('settings')">Settings</button>
 </nav>
 
-<!-- BUDGET TAB -->
 <section id="budget" class="active">
 <div id="budgetItems"></div>
 <div class="card">
@@ -43,7 +92,6 @@ button.action{background:#4f46e5;color:#fff;border:none;padding:10px;border-radi
 </div>
 </section>
 
-<!-- CALENDAR TAB -->
 <section id="calendar">
 <div class="card">
 <h3>Add Bill or Payday</h3>
@@ -58,12 +106,10 @@ button.action{background:#4f46e5;color:#fff;border:none;padding:10px;border-radi
 <div id="eventList"></div>
 </section>
 
-<!-- SETTINGS TAB -->
 <section id="settings">
 <div class="card">
 <h3>Cloud Sync</h3>
-<p>Paste your Firebase keys below to enable sync.</p>
-<button class="action" onclick="syncToCloud()">Sync to Cloud</button>
+<button class="action" onclick="syncToCloud(state)">Sync to Cloud</button>
 <button class="action" onclick="loadFromCloud()">Load from Cloud</button>
 </div>
 <div class="card">
@@ -72,23 +118,6 @@ button.action{background:#4f46e5;color:#fff;border:none;padding:10px;border-radi
 </section>
 
 <script>
-// =========================
-// CONFIGURE FIREBASE HERE
-// =========================
-const firebaseConfig = {
-  apiKey: "AIzaSyA4jQd6f-cRohCObgRyscM3brEbQkiEZ3o",
-  authDomain: "budget-3582e.firebaseapp.com",
-  projectId: "budget-3582e",
-  storageBucket: "budget-3582e.firebasestorage.app",
-  messagingSenderId: "889532008400",
-  appId: "1:889532008400:web:d174a40803e39c90b29bd5",
-  measurementId: "G-3JER9KVEX0"
-};
-
-// Uncomment the next two lines after pasting your Firebase keys
-//firebase.initializeApp(firebaseConfig);
-//const db = firebase.firestore();
-
 // =========================
 // APP STATE
 // =========================
@@ -183,31 +212,6 @@ l.appendChild(d);
 }
 
 // =========================
-// CLOUD SYNC FUNCTIONS
-// =========================
-async function syncToCloud(){
-try {
-  await db.collection("finance").doc("main").set(state);
-  alert("Synced to cloud");
-} catch(err){alert("Error syncing to cloud: "+err);}
-}
-
-async function loadFromCloud(){
-try {
-  const doc = await db.collection("finance").doc("main").get();
-  if(doc.exists){
-    state = doc.data();
-    saveLocal();
-    renderBudget();
-    renderEvents();
-    alert("Loaded from cloud");
-  } else {
-    alert("No cloud data found.");
-  }
-} catch(err){alert("Error loading cloud data: "+err);}
-}
-
-// =========================
 // RESET
 // =========================
 function resetAll(){
@@ -226,3 +230,4 @@ renderEvents();
 
 </body>
 </html>
+
