@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Bi-Weekly Budget Tracker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: Arial; padding: 20px; }
+    .item { border: 1px solid #ccc; padding: 12px; margin-bottom: 10px; border-radius: 8px; }
+    .good { color: green; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+<h1>Bi-Weekly Budget Tracker</h1>
+
+<div id="app"></div>
+
+<script>
+const items = [
+  { name: "Savings Transfer", budget: 350 },
+  { name: "Groceries", budget: 150 },
+  { name: "Gas", budget: 100 },
+  { name: "Other Spending", budget: 100 },
+  { name: "Phone", budget: 100 },
+  { name: "Insurance", budget: 180 },
+  { name: "Loan Payment", budget: 200 },
+  { name: "Subscriptions", budget: 75 }
+];
+
+const app = document.getElementById("app");
+
+items.forEach(item => {
+  const div = document.createElement("div");
+  div.className = "item";
+
+  div.innerHTML = `
+    <strong>${item.name}</strong><br>
+    Budget: $${item.budget}<br>
+    <input type="number" placeholder="Actual spent" />
+    <div class="status"></div>
+  `;
+
+  const input = div.querySelector("input");
+  const status = div.querySelector(".status");
+
+  input.addEventListener("input", () => {
+    status.textContent =
+      input.value && Number(input.value) <= item.budget
+        ? "✔ On track"
+        : "";
+    status.className = "status good";
+  });
+
+  app.appendChild(div);
+});
+</script>
+
+</body>
+</html>
