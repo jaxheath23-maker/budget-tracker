@@ -79,9 +79,6 @@ const firebaseConfig = {
   appId: "PASTE_HERE"
 };
 
-// Init Firebase
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
 
 // App State
 let state = JSON.parse(localStorage.getItem("finance")) || {
