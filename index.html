@@ -4,35 +4,121 @@
   <title>Bi-Weekly Budget Tracker</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    body { font-family: Arial; padding: 20px; }
-    .item { border: 1px solid #ccc; padding: 12px; margin-bottom: 10px; border-radius: 8px; }
-    .good { color: green; font-weight: bold; }
-    .bar { background: #eee; border-radius: 8px; overflow: hidden; }
-    .bar-fill { background: green; height: 20px; text-align: center; color: white; }
-    button { padding: 8px 12px; margin-top: 10px; }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont;
+      background: #f5f7fb;
+      padding: 20px;
+      color: #333;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    select {
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      margin-bottom: 20px;
+      width: 100%;
+    }
+
+    .card {
+      background: white;
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 14px;
+      box-shadow: 0 4px 10px rgba(0,0,0,.05);
+    }
+
+    .item.over {
+      border-left: 6px solid #e74c3c;
+      background: #fff5f5;
+    }
+
+    .item.good {
+      border-left: 6px solid #2ecc71;
+    }
+
+    input {
+      width: 100%;
+      padding: 8px;
+      margin-top: 6px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+
+    .budget {
+      display: flex;
+      justify-content: space-between;
+      font-size: 14px;
+    }
+
+    .budget input {
+      width: 80px;
+      text-align: right;
+    }
+
+    .warning {
+      color: #e74c3c;
+      font-weight: bold;
+      margin-top: 6px;
+    }
+
+    .bar {
+      background: #ddd;
+      border-radius: 10px;
+      overflow: hidden;
+      height: 22px;
+    }
+
+    .bar-fill {
+      height: 22px;
+      background: linear-gradient(90deg, #2ecc71, #27ae60);
+      color: white;
+      text-align: center;
+      font-size: 12px;
+    }
+
+    button {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 10px;
+      background: #4f46e5;
+      color: white;
+      font-size: 16px;
+      margin-top: 10px;
+    }
+
+    .totals strong {
+      font-size: 18px;
+    }
   </style>
 </head>
 <body>
 
-<h1>Bi-Weekly Budget Tracker</h1>
+<h1>💰 Bi-Weekly Budget Tracker</h1>
 
-<label><strong>Pay Period:</strong></label>
 <select id="period"></select>
 
-<h3>Down Payment Progress ($10,000 goal)</h3>
-<div class="bar">
-  <div id="dpBar" class="bar-fill"></div>
+<div class="card">
+  <h3>🏠 Down Payment Progress ($10,000)</h3>
+  <div class="bar">
+    <div id="dpBar" class="bar-fill"></div>
+  </div>
 </div>
 
 <div id="app"></div>
 
-<h3>Totals</h3>
-<p>Total Budgeted: $<span id="totalBudget">0</span></p>
-<p>Total Spent: $<span id="totalSpent">0</span></p>
-<p><strong>Remaining: $<span id="remaining">0</span></strong></p>
+<div class="card totals">
+  <p>Total Budgeted: $<span id="totalBudget"></span></p>
+  <p>Total Spent: $<span id="totalSpent"></span></p>
+  <p><strong>Remaining: $<span id="remaining"></span></strong></p>
+</div>
 
 <button onclick="resetPeriod()">Reset Pay Period</button>
-<button onclick="exportCSV()">Export to Excel</button>
 
 <script>
 const downPaymentGoal = 10000;
@@ -44,7 +130,7 @@ const periods = [
   "Jan 30 – Feb 12"
 ];
 
-const items = [
+const defaultItems = [
   { name: "Savings Transfer", budget: 350 },
   { name: "Groceries", budget: 150 },
   { name: "Gas", budget: 100 },
@@ -73,11 +159,21 @@ periodSelect.onchange = () => {
 };
 
 function getData() {
-  return JSON.parse(localStorage.getItem(currentPeriod)) || {};
+  return JSON.parse(localStorage.getItem(currentPeriod)) || { items: defaultItems };
 }
 
 function saveData(data) {
   localStorage.setItem(currentPeriod, JSON.stringify(data));
+}
+
+function notify(msg) {
+  if (Notification.permission === "granted") {
+    new Notification(msg);
+  }
+}
+
+if (Notification.permission !== "granted") {
+  Notification.requestPermission();
 }
 
 function load() {
@@ -88,31 +184,37 @@ function load() {
   let totalBudget = 0;
   let totalSpent = 0;
 
-  items.forEach(item => {
-    totalBudget += item.budget;
-    const val = data[item.name] || 0;
-    totalSpent += Number(val);
+  data.items.forEach(item => {
+    totalBudget += Number(item.budget);
+    totalSpent += Number(item.spent || 0);
+
+    const over = item.spent > item.budget;
 
     const div = document.createElement("div");
-    div.className = "item";
+    div.className = `card item ${over ? "over" : "good"}`;
+
     div.innerHTML = `
-      <strong>${item.name}</strong><br>
-      Budget: $${item.budget}<br>
-      <input type="number" value="${val}" />
-      <div class="status"></div>
+      <strong>${item.name}</strong>
+      <div class="budget">
+        Budget: $
+        <input type="number" value="${item.budget}">
+      </div>
+      <input type="number" placeholder="Actual spent" value="${item.spent || ""}">
+      ${over ? '<div class="warning">🚨 Over budget</div>' : ""}
     `;
 
-    const input = div.querySelector("input");
-    const status = div.querySelector(".status");
+    const [budgetInput, spentInput] = div.querySelectorAll("input");
 
-    if (val && val <= item.budget) {
-      status.textContent = "✔ On track";
-      status.className = "status good";
-    }
-
-    input.oninput = () => {
-      data[item.name] = input.value;
+    budgetInput.oninput = () => {
+      item.budget = Number(budgetInput.value);
       saveData(data);
+      load();
+    };
+
+    spentInput.oninput = () => {
+      item.spent = Number(spentInput.value);
+      saveData(data);
+      if (item.spent > item.budget) notify(`${item.name} is over budget`);
       load();
     };
 
@@ -137,8 +239,10 @@ function updateDownPayment() {
   let saved = 0;
   periods.forEach(p => {
     const d = JSON.parse(localStorage.getItem(p));
-    if (d && d["Savings Transfer"]) {
-      saved += Number(d["Savings Transfer"]);
+    if (d?.items) {
+      d.items.forEach(i => {
+        if (i.name === "Savings Transfer") saved += Number(i.spent || 0);
+      });
     }
   });
 
@@ -148,28 +252,10 @@ function updateDownPayment() {
   bar.textContent = "$" + saved;
 }
 
-function exportCSV() {
-  let rows = [["Pay Period", "Category", "Amount"]];
-  periods.forEach(p => {
-    const d = JSON.parse(localStorage.getItem(p));
-    if (d) {
-      for (let k in d) {
-        rows.push([p, k, d[k]]);
-      }
-    }
-  });
-
-  let csv = rows.map(r => r.join(",")).join("\\n");
-  let blob = new Blob([csv], { type: "text/csv" });
-  let a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "budget.csv";
-  a.click();
-}
-
 load();
 </script>
 
 </body>
 </html>
+
 
