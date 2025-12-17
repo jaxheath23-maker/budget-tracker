@@ -12,6 +12,7 @@
 <body>
 
 <h1>Bi-Weekly Budget Tracker</h1>
+<p>Pay Period: Dec 19 – Jan 1</p>
 
 <div id="app"></div>
 
@@ -29,26 +30,40 @@ const items = [
 
 const app = document.getElementById("app");
 
-items.forEach(item => {
+// Load saved data
+const savedData = JSON.parse(localStorage.getItem("budgetData")) || {};
+
+items.forEach((item, index) => {
   const div = document.createElement("div");
   div.className = "item";
+
+  const savedValue = savedData[item.name] || "";
 
   div.innerHTML = `
     <strong>${item.name}</strong><br>
     Budget: $${item.budget}<br>
-    <input type="number" placeholder="Actual spent" />
+    <input type="number" value="${savedValue}" placeholder="Actual spent" />
     <div class="status"></div>
   `;
 
   const input = div.querySelector("input");
   const status = div.querySelector(".status");
 
+  function updateStatus() {
+    if (input.value && Number(input.value) <= item.budget) {
+      status.textContent = "✔ On track";
+      status.className = "status good";
+    } else {
+      status.textContent = "";
+    }
+  }
+
+  updateStatus();
+
   input.addEventListener("input", () => {
-    status.textContent =
-      input.value && Number(input.value) <= item.budget
-        ? "✔ On track"
-        : "";
-    status.className = "status good";
+    savedData[item.name] = input.value;
+    localStorage.setItem("budgetData", JSON.stringify(savedData));
+    updateStatus();
   });
 
   app.appendChild(div);
