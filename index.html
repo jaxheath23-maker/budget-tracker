@@ -4,11 +4,16 @@
 <meta charset="UTF-8">
 <title>Personal Finance Dashboard</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Firebase (Firestore only) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"></script>
+
 <style>
-body{font-family:system-ui;background:#f4f6fb;margin:0;padding:0;color:#222}
+body{font-family:system-ui;background:#f4f6fb;margin:0;color:#222}
 header{background:#4f46e5;color:#fff;padding:16px;text-align:center;font-size:20px}
-nav{display:flex;justify-content:space-around;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.1)}
-nav button{flex:1;padding:14px;border:none;background:none;font-size:16px}
+nav{display:flex;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.1)}
+nav button{flex:1;padding:14px;border:none;background:none;font-size:15px}
 nav button.active{border-bottom:4px solid #4f46e5;font-weight:bold}
 section{display:none;padding:16px}
 section.active{display:block}
@@ -16,14 +21,6 @@ section.active{display:block}
 input,select{width:100%;padding:8px;margin-top:6px;border-radius:6px;border:1px solid #ccc}
 .over{border-left:6px solid #e74c3c}
 .good{border-left:6px solid #2ecc71}
-.bar{background:#ddd;border-radius:10px;height:22px;overflow:hidden}
-.bar-fill{background:#2ecc71;height:22px;color:#fff;text-align:center;font-size:12px}
-.calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
-.day{background:#fff;border-radius:8px;padding:8px;font-size:12px}
-.bill{color:#e74c3c;font-weight:bold}
-.pay{color:#2ecc71;font-weight:bold}
-.dark{background:#111;color:#eee}
-.dark .card{background:#1e1e1e}
 button.action{background:#4f46e5;color:#fff;border:none;padding:10px;border-radius:10px;width:100%;margin-top:8px}
 </style>
 </head>
@@ -35,71 +32,166 @@ button.action{background:#4f46e5;color:#fff;border:none;padding:10px;border-radi
 <nav>
 <button onclick="showTab('budget')" class="active">Budget</button>
 <button onclick="showTab('calendar')">Calendar</button>
-<button onclick="showTab('mortgage')">Mortgage</button>
 <button onclick="showTab('settings')">Settings</button>
 </nav>
 
-<!-- BUDGET -->
+<!-- BUDGET TAB -->
 <section id="budget" class="active">
-<div class="card">
-<h3>Down Payment Progress ($10,000)</h3>
-<div class="bar"><div id="dpBar" class="bar-fill"></div></div>
-</div>
 <div id="budgetItems"></div>
 <div class="card">
-<p>Total Budgeted: $<span id="tb"></span></p>
-<p>Total Spent: $<span id="ts"></span></p>
-<p><strong>Remaining: $<span id="tr"></span></strong></p>
+<p><strong>Remaining:</strong> $<span id="remaining">0</span></p>
 </div>
 </section>
 
-<!-- CALENDAR -->
+<!-- CALENDAR TAB -->
 <section id="calendar">
 <div class="card">
-<h3>Add Bill / Payday</h3>
-<input id="calName" placeholder="Name">
-<select id="calType">
+<h3>Add Bill or Payday</h3>
+<input id="eventName" placeholder="Name (Rent, Payday, etc.)">
+<select id="eventType">
 <option value="bill">Bill</option>
 <option value="pay">Payday</option>
 </select>
-<input type="date" id="calDate">
+<input type="date" id="eventDate">
 <button class="action" onclick="addEvent()">Add</button>
 </div>
-<div class="calendar" id="calendarGrid"></div>
+<div id="eventList"></div>
 </section>
 
-<!-- MORTGAGE -->
-<section id="mortgage">
-<div class="card">
-<h3>Mortgage Calculator</h3>
-<input id="homePrice" placeholder="Home price">
-<input id="downPayment" placeholder="Down payment">
-<input id="rate" placeholder="Interest rate %">
-<input id="years" placeholder="Years">
-<button class="action" onclick="calcMortgage()">Calculate</button>
-<p id="mortResult"></p>
-</div>
-</section>
-
-<!-- SETTINGS -->
+<!-- SETTINGS TAB -->
 <section id="settings">
 <div class="card">
-<h3>Settings</h3>
-<label>Monthly Income</label>
-<input id="income">
-<button class="action" onclick="toggleDark()">Toggle Dark Mode</button>
+<h3>Cloud Sync</h3>
+<button class="action" onclick="syncToCloud()">Sync to Cloud</button>
+<button class="action" onclick="loadFromCloud()">Load from Cloud</button>
+</div>
+<div class="card">
 <button class="action" onclick="resetAll()">Reset All Data</button>
 </div>
 </section>
 
 <script>
-const state=JSON.parse(localStorage.getItem("finance"))||{
-income:2450,
+// 🔥 PASTE YOUR FIREBASE CONFIG HERE
+const firebaseConfig = {
+  apiKey: "PASTE_HERE",
+  authDomain: "PASTE_HERE",
+  projectId: "PASTE_HERE",
+  appId: "PASTE_HERE"
+};
+
+// Init Firebase
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// App State
+let state = JSON.parse(localStorage.getItem("finance")) || {
 items:[
 {name:"Savings Transfer",budget:350,spent:0},
 {name:"Groceries",budget:150,spent:0},
 {name:"Gas",budget:100,spent:0},
-{name:"Other",budget:100,spent:0},
+{name:"Other Spending",budget:100,spent:0},
 {name:"Phone",budget:100,spent:0},
-{name:"Insurance",b
+{name:"Insurance",budget:180,spent:0},
+{name:"Loan Payment",budget:200,spent:0},
+{name:"Subscriptions",budget:75,spent:0}
+],
+events:[]
+};
 
+function saveLocal(){
+localStorage.setItem("finance",JSON.stringify(state));
+}
+
+function showTab(id){
+document.querySelectorAll("section").forEach(s=>s.classList.remove("active"));
+document.querySelectorAll("nav button").forEach(b=>b.classList.remove("active"));
+document.getElementById(id).classList.add("active");
+event.target.classList.add("active");
+}
+
+function renderBudget(){
+let remaining=0;
+const c=document.getElementById("budgetItems");
+c.innerHTML="";
+state.items.forEach(i=>{
+remaining+=i.budget-i.spent;
+const d=document.createElement("div");
+d.className="card "+(i.spent>i.budget?"over":"good");
+d.innerHTML=`
+<strong>${i.name}</strong>
+<label>Budget</label>
+<input type="number" value="${i.budget}" onchange="updateBudget('${i.name}',this.value)">
+<label>Spent</label>
+<input type="number" value="${i.spent}" onchange="updateSpent('${i.name}',this.value)">
+${i.spent>i.budget?"🚨 Over budget":""}
+`;
+c.appendChild(d);
+});
+document.getElementById("remaining").textContent=remaining;
+}
+
+function updateBudget(name,val){
+state.items.find(i=>i.name===name).budget=Number(val);
+saveLocal();
+renderBudget();
+}
+
+function updateSpent(name,val){
+const i=state.items.find(x=>x.name===name);
+i.spent=Number(val);
+if(i.spent>i.budget) alert(name+" is over budget");
+saveLocal();
+renderBudget();
+}
+
+function addEvent(){
+state.events.push({
+name:eventName.value,
+type:eventType.value,
+date:eventDate.value
+});
+saveLocal();
+renderEvents();
+eventName.value="";
+}
+
+function renderEvents(){
+const l=document.getElementById("eventList");
+l.innerHTML="";
+state.events.forEach(e=>{
+const d=document.createElement("div");
+d.className="card";
+d.innerHTML=`<strong>${e.date}</strong><br>${e.name} (${e.type})`;
+l.appendChild(d);
+});
+}
+
+async function syncToCloud(){
+await db.collection("finance").doc("main").set(state);
+alert("Synced to cloud");
+}
+
+async function loadFromCloud(){
+const doc=await db.collection("finance").doc("main").get();
+if(doc.exists){
+state=doc.data();
+saveLocal();
+renderBudget();
+renderEvents();
+alert("Loaded from cloud");
+}
+}
+
+function resetAll(){
+if(confirm("Reset all data?")){
+localStorage.clear();
+location.reload();
+}
+}
+
+renderBudget();
+renderEvents();
+</script>
+
+</body>
+</html>
