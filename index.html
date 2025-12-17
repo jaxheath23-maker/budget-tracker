@@ -1,261 +1,105 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Bi-Weekly Budget Tracker</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <style>
-    body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont;
-      background: #f5f7fb;
-      padding: 20px;
-      color: #333;
-    }
-
-    h1 {
-      text-align: center;
-      margin-bottom: 10px;
-    }
-
-    select {
-      padding: 8px;
-      border-radius: 6px;
-      border: 1px solid #ccc;
-      margin-bottom: 20px;
-      width: 100%;
-    }
-
-    .card {
-      background: white;
-      border-radius: 14px;
-      padding: 14px;
-      margin-bottom: 14px;
-      box-shadow: 0 4px 10px rgba(0,0,0,.05);
-    }
-
-    .item.over {
-      border-left: 6px solid #e74c3c;
-      background: #fff5f5;
-    }
-
-    .item.good {
-      border-left: 6px solid #2ecc71;
-    }
-
-    input {
-      width: 100%;
-      padding: 8px;
-      margin-top: 6px;
-      border-radius: 6px;
-      border: 1px solid #ccc;
-    }
-
-    .budget {
-      display: flex;
-      justify-content: space-between;
-      font-size: 14px;
-    }
-
-    .budget input {
-      width: 80px;
-      text-align: right;
-    }
-
-    .warning {
-      color: #e74c3c;
-      font-weight: bold;
-      margin-top: 6px;
-    }
-
-    .bar {
-      background: #ddd;
-      border-radius: 10px;
-      overflow: hidden;
-      height: 22px;
-    }
-
-    .bar-fill {
-      height: 22px;
-      background: linear-gradient(90deg, #2ecc71, #27ae60);
-      color: white;
-      text-align: center;
-      font-size: 12px;
-    }
-
-    button {
-      width: 100%;
-      padding: 10px;
-      border: none;
-      border-radius: 10px;
-      background: #4f46e5;
-      color: white;
-      font-size: 16px;
-      margin-top: 10px;
-    }
-
-    .totals strong {
-      font-size: 18px;
-    }
-  </style>
+<meta charset="UTF-8">
+<title>Personal Finance Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+body{font-family:system-ui;background:#f4f6fb;margin:0;padding:0;color:#222}
+header{background:#4f46e5;color:#fff;padding:16px;text-align:center;font-size:20px}
+nav{display:flex;justify-content:space-around;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.1)}
+nav button{flex:1;padding:14px;border:none;background:none;font-size:16px}
+nav button.active{border-bottom:4px solid #4f46e5;font-weight:bold}
+section{display:none;padding:16px}
+section.active{display:block}
+.card{background:#fff;border-radius:14px;padding:14px;margin-bottom:14px;box-shadow:0 4px 10px rgba(0,0,0,.05)}
+input,select{width:100%;padding:8px;margin-top:6px;border-radius:6px;border:1px solid #ccc}
+.over{border-left:6px solid #e74c3c}
+.good{border-left:6px solid #2ecc71}
+.bar{background:#ddd;border-radius:10px;height:22px;overflow:hidden}
+.bar-fill{background:#2ecc71;height:22px;color:#fff;text-align:center;font-size:12px}
+.calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.day{background:#fff;border-radius:8px;padding:8px;font-size:12px}
+.bill{color:#e74c3c;font-weight:bold}
+.pay{color:#2ecc71;font-weight:bold}
+.dark{background:#111;color:#eee}
+.dark .card{background:#1e1e1e}
+button.action{background:#4f46e5;color:#fff;border:none;padding:10px;border-radius:10px;width:100%;margin-top:8px}
+</style>
 </head>
+
 <body>
 
-<h1>💰 Bi-Weekly Budget Tracker</h1>
+<header>💰 Personal Finance Dashboard</header>
 
-<select id="period"></select>
+<nav>
+<button onclick="showTab('budget')" class="active">Budget</button>
+<button onclick="showTab('calendar')">Calendar</button>
+<button onclick="showTab('mortgage')">Mortgage</button>
+<button onclick="showTab('settings')">Settings</button>
+</nav>
 
+<!-- BUDGET -->
+<section id="budget" class="active">
 <div class="card">
-  <h3>🏠 Down Payment Progress ($10,000)</h3>
-  <div class="bar">
-    <div id="dpBar" class="bar-fill"></div>
-  </div>
+<h3>Down Payment Progress ($10,000)</h3>
+<div class="bar"><div id="dpBar" class="bar-fill"></div></div>
 </div>
-
-<div id="app"></div>
-
-<div class="card totals">
-  <p>Total Budgeted: $<span id="totalBudget"></span></p>
-  <p>Total Spent: $<span id="totalSpent"></span></p>
-  <p><strong>Remaining: $<span id="remaining"></span></strong></p>
+<div id="budgetItems"></div>
+<div class="card">
+<p>Total Budgeted: $<span id="tb"></span></p>
+<p>Total Spent: $<span id="ts"></span></p>
+<p><strong>Remaining: $<span id="tr"></span></strong></p>
 </div>
+</section>
 
-<button onclick="resetPeriod()">Reset Pay Period</button>
+<!-- CALENDAR -->
+<section id="calendar">
+<div class="card">
+<h3>Add Bill / Payday</h3>
+<input id="calName" placeholder="Name">
+<select id="calType">
+<option value="bill">Bill</option>
+<option value="pay">Payday</option>
+</select>
+<input type="date" id="calDate">
+<button class="action" onclick="addEvent()">Add</button>
+</div>
+<div class="calendar" id="calendarGrid"></div>
+</section>
+
+<!-- MORTGAGE -->
+<section id="mortgage">
+<div class="card">
+<h3>Mortgage Calculator</h3>
+<input id="homePrice" placeholder="Home price">
+<input id="downPayment" placeholder="Down payment">
+<input id="rate" placeholder="Interest rate %">
+<input id="years" placeholder="Years">
+<button class="action" onclick="calcMortgage()">Calculate</button>
+<p id="mortResult"></p>
+</div>
+</section>
+
+<!-- SETTINGS -->
+<section id="settings">
+<div class="card">
+<h3>Settings</h3>
+<label>Monthly Income</label>
+<input id="income">
+<button class="action" onclick="toggleDark()">Toggle Dark Mode</button>
+<button class="action" onclick="resetAll()">Reset All Data</button>
+</div>
+</section>
 
 <script>
-const downPaymentGoal = 10000;
-
-const periods = [
-  "Dec 19 – Jan 1",
-  "Jan 2 – Jan 15",
-  "Jan 16 – Jan 29",
-  "Jan 30 – Feb 12"
-];
-
-const defaultItems = [
-  { name: "Savings Transfer", budget: 350 },
-  { name: "Groceries", budget: 150 },
-  { name: "Gas", budget: 100 },
-  { name: "Other Spending", budget: 100 },
-  { name: "Phone", budget: 100 },
-  { name: "Insurance", budget: 180 },
-  { name: "Loan Payment", budget: 200 },
-  { name: "Subscriptions", budget: 75 }
-];
-
-const periodSelect = document.getElementById("period");
-periods.forEach(p => {
-  const opt = document.createElement("option");
-  opt.value = p;
-  opt.textContent = p;
-  periodSelect.appendChild(opt);
-});
-
-let currentPeriod = localStorage.getItem("currentPeriod") || periods[0];
-periodSelect.value = currentPeriod;
-
-periodSelect.onchange = () => {
-  currentPeriod = periodSelect.value;
-  localStorage.setItem("currentPeriod", currentPeriod);
-  load();
-};
-
-function getData() {
-  return JSON.parse(localStorage.getItem(currentPeriod)) || { items: defaultItems };
-}
-
-function saveData(data) {
-  localStorage.setItem(currentPeriod, JSON.stringify(data));
-}
-
-function notify(msg) {
-  if (Notification.permission === "granted") {
-    new Notification(msg);
-  }
-}
-
-if (Notification.permission !== "granted") {
-  Notification.requestPermission();
-}
-
-function load() {
-  const data = getData();
-  const app = document.getElementById("app");
-  app.innerHTML = "";
-
-  let totalBudget = 0;
-  let totalSpent = 0;
-
-  data.items.forEach(item => {
-    totalBudget += Number(item.budget);
-    totalSpent += Number(item.spent || 0);
-
-    const over = item.spent > item.budget;
-
-    const div = document.createElement("div");
-    div.className = `card item ${over ? "over" : "good"}`;
-
-    div.innerHTML = `
-      <strong>${item.name}</strong>
-      <div class="budget">
-        Budget: $
-        <input type="number" value="${item.budget}">
-      </div>
-      <input type="number" placeholder="Actual spent" value="${item.spent || ""}">
-      ${over ? '<div class="warning">🚨 Over budget</div>' : ""}
-    `;
-
-    const [budgetInput, spentInput] = div.querySelectorAll("input");
-
-    budgetInput.oninput = () => {
-      item.budget = Number(budgetInput.value);
-      saveData(data);
-      load();
-    };
-
-    spentInput.oninput = () => {
-      item.spent = Number(spentInput.value);
-      saveData(data);
-      if (item.spent > item.budget) notify(`${item.name} is over budget`);
-      load();
-    };
-
-    app.appendChild(div);
-  });
-
-  document.getElementById("totalBudget").textContent = totalBudget;
-  document.getElementById("totalSpent").textContent = totalSpent;
-  document.getElementById("remaining").textContent = totalBudget - totalSpent;
-
-  updateDownPayment();
-}
-
-function resetPeriod() {
-  if (confirm("Reset this pay period?")) {
-    localStorage.removeItem(currentPeriod);
-    load();
-  }
-}
-
-function updateDownPayment() {
-  let saved = 0;
-  periods.forEach(p => {
-    const d = JSON.parse(localStorage.getItem(p));
-    if (d?.items) {
-      d.items.forEach(i => {
-        if (i.name === "Savings Transfer") saved += Number(i.spent || 0);
-      });
-    }
-  });
-
-  const percent = Math.min((saved / downPaymentGoal) * 100, 100);
-  const bar = document.getElementById("dpBar");
-  bar.style.width = percent + "%";
-  bar.textContent = "$" + saved;
-}
-
-load();
-</script>
-
-</body>
-</html>
-
+const state=JSON.parse(localStorage.getItem("finance"))||{
+income:2450,
+items:[
+{name:"Savings Transfer",budget:350,spent:0},
+{name:"Groceries",budget:150,spent:0},
+{name:"Gas",budget:100,spent:0},
+{name:"Other",budget:100,spent:0},
+{name:"Phone",budget:100,spent:0},
+{name:"Insurance",b
 
